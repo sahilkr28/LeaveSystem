@@ -2,13 +2,15 @@ import os
 import sys
 from pathlib import Path
 
-# Ensure project root is in Python path for Vercel Serverless Function
+# Ensure project root is in sys.path
 ROOT_DIR = Path(__file__).resolve().parent.parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from app import app
+# Ensure VERCEL environment indicator is active
+os.environ["VERCEL"] = "1"
 
-# Vercel looks for the WSGI application callable named 'app'
-if __name__ == "__main__":
-    app.run()
+from app.app import app
+
+# Expose both 'app' and 'handler' for Vercel WSGI runtime
+handler = app

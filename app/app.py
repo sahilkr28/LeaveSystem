@@ -1,5 +1,6 @@
 import os
 import socket
+from pathlib import Path
 from datetime import datetime, date, timezone
 from flask import (
     Flask, render_template, request, redirect, url_for, 
@@ -16,15 +17,26 @@ except (ImportError, ValueError):
 
 def create_app(test_config=None):
     """Application Factory Pattern for Smart Campus Hostel ERP"""
-    app = Flask(__name__, template_folder="templates", static_folder="static")
+    base_dir = Path(__file__).resolve().parent
+    templates_dir = base_dir / "templates"
+    static_dir = base_dir / "static"
+
+    app = Flask(
+        __name__, 
+        template_folder=str(templates_dir), 
+        static_folder=str(static_dir)
+    )
     app.config.from_object(Config)
 
     if test_config:
         app.config.update(test_config)
 
-    # Initialize Database Schema & Seed Data
+    # Initialize Database Schema & Seed Data safely
     with app.app_context():
-        init_db(seed=True)
+        try:
+            init_db(seed=True)
+        except Exception as e:
+            print(f"[STARTUP DB INIT NOTICE] {e}")
 
     # Cleanup Database Session on Request Teardown
     @app.teardown_appcontext

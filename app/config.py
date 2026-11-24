@@ -20,9 +20,16 @@ class Config:
         SQLALCHEMY_DATABASE_URI = raw_db_url
     else:
         # Default local SQLite database
-        # If running in Vercel serverless environment, use /tmp for writeable storage
-        if os.environ.get('VERCEL'):
-            default_sqlite_path = Path('/tmp') / 'hostel_erp.db'
+        # If running in Vercel, AWS Lambda, or any environment where filesystem is read-only:
+        is_serverless = bool(
+            os.environ.get('VERCEL') or
+            os.environ.get('AWS_LAMBDA_FUNCTION_NAME') or
+            os.environ.get('LAMBDA_TASK_ROOT') or
+            not os.access(str(BASE_DIR), os.W_OK)
+        )
+        if is_serverless:
+            import tempfile
+            default_sqlite_path = Path(tempfile.gettempdir()) / "hostel_erp.db"
         else:
             default_sqlite_path = BASE_DIR / "hostel_erp.db"
         SQLALCHEMY_DATABASE_URI = f"sqlite:///{default_sqlite_path.as_posix()}"
