@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ app_name }}{% endblock %}</title>
+
+    <!-- Standard Bootstrap 5 CSS via CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <!-- Bootstrap Icons via CDN -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <!-- Institutional ERP Stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/erp.css') }}">
+    {% block head %}{% endblock %}
+</head>
+<body>
+
+    <!-- Institutional Header Strip -->
+    <header class="erp-topbar">
+        <div class="container-fluid px-4 d-flex justify-content-between align-items-center">
+            <div>
+                <i class="bi bi-bank2 me-2"></i>
+                <span class="fw-semibold">{{ campus_name }}</span>
+                <span class="mx-2 text-white-50">|</span>
+                <span class="text-white-50">Hostel & Residential Affairs Directorate</span>
+            </div>
+            <div class="d-none d-md-flex align-items-center gap-3">
+                <span><i class="bi bi-calendar3 me-1"></i> Academic Session 2026-27</span>
+                <span class="text-white-50">|</span>
+                <span class="badge bg-secondary font-monospace"><i class="bi bi-shield-check me-1"></i>Official ERP Portal</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main ERP Navigation Bar -->
+    <nav class="navbar navbar-expand-lg erp-navbar navbar-dark shadow-sm">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand d-flex align-items-center" href="{{ url_for('student_portal') }}">
+                <i class="bi bi-buildings-fill fs-4 me-2 text-warning"></i>
+                <div>
+                    <div>HOSTEL ERP PORTAL</div>
+                    <small class="d-block text-white-50" style="font-size: 0.65rem; font-weight: 400; letter-spacing: 0.5px;">SMART CAMPUS RESIDENTIAL SYSTEM</small>
+                </div>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#erpNavbarContent" aria-controls="erpNavbarContent" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="erpNavbarContent">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0 ms-lg-3">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'student_portal' %}active{% endif %}" href="{{ url_for('student_portal') }}">
+                            <i class="bi bi-mortarboard-fill me-1"></i> Student Desk & Live Status
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint in ['warden_dashboard', 'warden_login'] %}active{% endif %}" href="{{ url_for('warden_dashboard') }}">
+                            <i class="bi bi-shield-lock-fill me-1"></i> Warden Administration
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('health_check') }}" target="_blank">
+                            <i class="bi bi-activity me-1"></i> Cluster Telemetry (/health)
+                        </a>
+                    </li>
+                </ul>
+
+                <!-- Top Right Live Node Verification Badge -->
+                <div class="d-flex align-items-center gap-2">
+                    <div class="text-white-50 small d-none d-xl-block">
+                        Active Node:
+                    </div>
+                    <span class="badge bg-dark border border-secondary text-info font-monospace py-2 px-3" title="Active Backend Server Hostname">
+                        <span class="pulse-indicator"></span><i class="bi bi-hdd-network me-1"></i>{{ server_hostname }}
+                    </span>
+                    {% if session.get('warden_authenticated') %}
+                    <a href="{{ url_for('warden_logout') }}" class="btn btn-outline-warning btn-sm ms-2">
+                        <i class="bi bi-box-arrow-right me-1"></i> Sign Out
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Global Flash Message Alerts -->
+    <div class="container-fluid px-4 mt-3">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm" role="alert">
+                    <div class="d-flex align-items-center">
+                        {% if category == 'success' %}
+                            <i class="bi bi-check-circle-fill fs-5 me-2"></i>
+                        {% elif category == 'danger' %}
+                            <i class="bi bi-exclamation-octagon-fill fs-5 me-2"></i>
+                        {% elif category == 'warning' %}
+                            <i class="bi bi-exclamation-triangle-fill fs-5 me-2"></i>
+                        {% else %}
+                            <i class="bi bi-info-circle-fill fs-5 me-2"></i>
+                        {% endif %}
+                        <div>{{ message }}</div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-override="true" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- Main Content Area -->
+    <main class="container-fluid px-4 my-3 flex-grow-1">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Institutional Footer with Visible Node & Telemetry Verification on EVERY Page -->
+    <footer class="erp-footer">
+        <div class="container-fluid px-4">
+            <div class="row g-4 align-items-center">
+                <!-- Column 1: Institutional ERP Branding -->
+                <div class="col-lg-5 col-md-6">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-mortarboard fs-4 text-warning me-2"></i>
+                        <span class="text-white fw-bold">{{ app_name }}</span>
+                    </div>
+                    <p class="mb-1 text-white-50 small">
+                        Production ERP framework managing residential student affairs, curfew enforcement (Day Leave: 9:00 PM), and maintenance dispatch.
+                    </p>
+                    <div class="small text-white-50">
+                        Campus ERP Build: <code>{{ app_version }}</code> | Status: <span class="text-success fw-semibold"><i class="bi bi-check-circle me-1"></i>Production Live</span>
+                    </div>
+                </div>
+
+                <!-- Column 2: Mandatory Hostel Regulations -->
+                <div class="col-lg-3 col-md-6">
+                    <div class="text-white fw-semibold mb-2 text-uppercase small" style="letter-spacing: 0.5px;">Hostel Regulations</div>
+                    <ul class="list-unstyled small mb-0">
+                        <li class="mb-1"><i class="bi bi-clock-history text-warning me-1"></i> <strong>Day Outing Curfew:</strong> Strictly 9:00 PM</li>
+                        <li class="mb-1"><i class="bi bi-geo-alt text-info me-1"></i> <strong>Night Leave:</strong> Destination address mandatory</li>
+                        <li class="mb-1"><i class="bi bi-telephone text-success me-1"></i> <strong>Security Control:</strong> +91-11-2659-1000</li>
+                    </ul>
+                </div>
+
+                <!-- Column 3: Load Balancing & Host Verification Telemetry (Strict Requirement) -->
+                <div class="col-lg-4 col-md-12">
+                    <div class="telemetry-node-box">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="text-white fw-semibold small text-uppercase" style="letter-spacing: 0.5px;">
+                                <i class="bi bi-cpu-fill text-warning me-1"></i> Cluster Node Telemetry
+                            </span>
+                            <span class="badge bg-success-subtle text-success border border-success small">
+                                <span class="pulse-indicator"></span>Active
+                            </span>
+                        </div>
+                        <div class="mb-1 small">
+                            <span class="text-white-50">Active Backend Host:</span>
+                            <span class="hostname-highlight px-2 py-0 ms-1 rounded bg-black border border-secondary">{{ server_hostname }}</span>
+                        </div>
+                        <div class="mb-1 small">
+                            <span class="text-white-50">Database Engine:</span>
+                            <span class="badge bg-secondary font-monospace text-white ms-1">{{ db_engine_name }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-2 pt-1 border-top border-secondary small">
+                            <a href="{{ url_for('health_check') }}" target="_blank" class="text-info text-decoration-none">
+                                <i class="bi bi-box-arrow-up-right me-1"></i> Verify <code>/health</code> JSON
+                            </a>
+                            <span class="text-white-50" style="font-size: 0.75rem;">Node Sync: {{ system_now }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-3 pt-2 border-top border-secondary text-white-50" style="font-size: 0.75rem;">
+                <div class="col-md-6 text-center text-md-start">
+                    &copy; 2026 {{ campus_name }}. All rights reserved. Enterprise Hostel Module.
+                </div>
+                <div class="col-md-6 text-center text-md-end">
+                    Backend Verified on Host Node <code>{{ server_hostname }}</code> for Multi-Replica Load Balancing
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap 5 Bundle with Popper via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <!-- Custom ERP JS -->
+    <script src="{{ url_for('static', filename='js/erp.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

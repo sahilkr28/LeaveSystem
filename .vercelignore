@@ -1,0 +1,10 @@
+terraform/
+ansible/
+tests/
+.git/
+.pytest_cache/
+__pycache__/
+*.pyc
+*.db
+docker-compose.yml
+Dockerfile

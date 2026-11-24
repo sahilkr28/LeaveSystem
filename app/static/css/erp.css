@@ -1,0 +1,214 @@
+/* Smart Campus Hostel & Leave Management ERP - Institutional Stylesheet */
+:root {
+    --erp-navy: #0f2a4a;
+    --erp-navy-dark: #091a2f;
+    --erp-blue: #1a4f8b;
+    --erp-border: #d0d7de;
+    --erp-bg-light: #f4f6f9;
+    --erp-card-header: #e9ecef;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: var(--erp-bg-light);
+    color: #212529;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Top Institutional Header */
+.erp-topbar {
+    background-color: var(--erp-navy-dark);
+    color: #ffffff;
+    font-size: 0.85rem;
+    padding: 6px 0;
+    border-bottom: 2px solid #b38f4d; /* Academic Gold Accent */
+}
+
+/* Main Navigation Bar */
+.erp-navbar {
+    background-color: var(--erp-navy);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.erp-navbar .navbar-brand {
+    font-weight: 700;
+    font-size: 1.15rem;
+    color: #ffffff !important;
+    letter-spacing: 0.5px;
+}
+
+.erp-navbar .nav-link {
+    color: #d1dce7 !important;
+    font-weight: 500;
+    font-size: 0.92rem;
+    padding: 0.6rem 1rem !important;
+    border-radius: 4px;
+    transition: background-color 0.15s ease-in-out;
+}
+
+.erp-navbar .nav-link:hover,
+.erp-navbar .nav-link.active {
+    color: #ffffff !important;
+    background-color: rgba(255, 255, 255, 0.12);
+}
+
+/* ERP Cards */
+.erp-card {
+    background: #ffffff;
+    border: 1px solid var(--erp-border);
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    margin-bottom: 1.5rem;
+}
+
+.erp-card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid var(--erp-border);
+    font-weight: 600;
+    font-size: 0.95rem;
+    padding: 0.75rem 1.25rem;
+    color: var(--erp-navy);
+}
+
+.erp-metric-card {
+    background: #ffffff;
+    border: 1px solid var(--erp-border);
+    border-left: 4px solid var(--erp-blue);
+    border-radius: 4px;
+    padding: 1rem 1.25rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.erp-metric-card.warning-border {
+    border-left-color: #ffc107;
+}
+
+.erp-metric-card.success-border {
+    border-left-color: #198754;
+}
+
+.erp-metric-card.danger-border {
+    border-left-color: #dc3545;
+}
+
+.erp-metric-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--erp-navy);
+    line-height: 1.2;
+}
+
+.erp-metric-label {
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: #6c757d;
+    letter-spacing: 0.5px;
+}
+
+/* Institutional Tables */
+.erp-table {
+    font-size: 0.88rem;
+    margin-bottom: 0;
+}
+
+.erp-table thead th {
+    background-color: #f1f4f8;
+    color: var(--erp-navy);
+    font-weight: 600;
+    border-bottom: 2px solid var(--erp-border);
+    text-transform: uppercase;
+    font-size: 0.78rem;
+    letter-spacing: 0.5px;
+    padding: 0.75rem 0.6rem;
+    white-space: nowrap;
+}
+
+.erp-table tbody td {
+    padding: 0.7rem 0.6rem;
+    vertical-align: middle;
+    border-bottom: 1px solid #e9ecef;
+}
+
+/* Status Badges */
+.badge-status-pending {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeeba;
+    font-weight: 600;
+    padding: 0.35em 0.65em;
+}
+
+.badge-status-approved {
+    background-color: #d1e7dd;
+    color: #0f5132;
+    border: 1px solid #badbcc;
+    font-weight: 600;
+    padding: 0.35em 0.65em;
+}
+
+.badge-status-rejected {
+    background-color: #f8d7da;
+    color: #842029;
+    border: 1px solid #f5c2c7;
+    font-weight: 600;
+    padding: 0.35em 0.65em;
+}
+
+.badge-status-resolved {
+    background-color: #d1e7dd;
+    color: #0f5132;
+    border: 1px solid #badbcc;
+    font-weight: 600;
+    padding: 0.35em 0.65em;
+}
+
+.badge-status-inprogress {
+    background-color: #cff4fc;
+    color: #055160;
+    border: 1px solid #b6effb;
+    font-weight: 600;
+    padding: 0.35em 0.65em;
+}
+
+/* Telemetry Footer */
+.erp-footer {
+    margin-top: auto;
+    background-color: #0d1e34;
+    color: #a4b7cc;
+    font-size: 0.83rem;
+    border-top: 3px solid #b38f4d;
+    padding: 1.5rem 0 1rem 0;
+}
+
+.erp-footer a {
+    color: #c0d4ec;
+}
+
+.erp-footer a:hover {
+    color: #ffffff;
+}
+
+.telemetry-node-box {
+    background-color: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+    padding: 0.75rem 1rem;
+}
+
+.telemetry-node-box .hostname-highlight {
+    font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-weight: 700;
+    color: #00e5ff;
+}
+
+.pulse-indicator {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background-color: #20c997;
+    border-radius: 50%;
+    margin-right: 6px;
+}

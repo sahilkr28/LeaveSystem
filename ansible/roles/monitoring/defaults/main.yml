@@ -1,0 +1,15 @@
+---
+# Defaults for roles/monitoring (Nagios Core on ops-node)
+nagios_admin_user: nagiosadmin
+nagios_admin_password: nagiosadmin_cluster_pass_2026
+nagios_port: 80
+nagios_config_dir: /etc/nagios4
+nagios_eventhandler_dir: /usr/local/nagios/libexec/eventhandlers
+infra_ansible_dir: /opt/infra/ansible
+infra_user: ubuntu
+
+# Polling and Monitoring Intervals
+check_interval: 1
+retry_interval: 1
+max_check_attempts: 3
+notification_interval: 30

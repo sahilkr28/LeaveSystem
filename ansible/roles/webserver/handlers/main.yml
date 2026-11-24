@@ -1,0 +1,10 @@
+---
+# Handlers for roles/webserver
+- name: reload systemd
+  ansible.builtin.systemd_service:
+    daemon_reload: yes
+
+- name: restart hostel-app
+  ansible.builtin.service:
+    name: hostel-app
+    state: restarted

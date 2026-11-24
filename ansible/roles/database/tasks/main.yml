@@ -1,0 +1,89 @@
+---
+# Tasks for roles/database
+
+- name: Install PostgreSQL server and client libraries
+  ansible.builtin.apt:
+    name:
+      - postgresql
+      - postgresql-contrib
+      - python3-psycopg2
+      - acl
+    state: present
+
+- name: Discover installed PostgreSQL version
+  ansible.builtin.shell: "ls -d /etc/postgresql/*/main | head -n 1 | cut -d/ -f4"
+  register: pg_version_detect
+  changed_when: false
+
+- name: Set postgresql_config_dir fact
+  ansible.builtin.set_fact:
+    postgresql_config_dir: "/etc/postgresql/{{ pg_version_detect.stdout }}/main"
+
+- name: Configure postgresql.conf to listen on all interfaces or VPC
+  ansible.builtin.lineinfile:
+    path: "{{ postgresql_config_dir }}/postgresql.conf"
+    regexp: '^#?listen_addresses\s*='
+    line: "listen_addresses = {{ db_listen_addresses }}"
+    state: present
+  notify: restart postgresql
+
+- name: Configure pg_hba.conf to allow VPC subnet authentication
+  ansible.builtin.lineinfile:
+    path: "{{ postgresql_config_dir }}/pg_hba.conf"
+    line: "host    {{ db_name }}    {{ db_user }}    {{ vpc_cidr }}    scram-sha-256"
+    insertafter: '^# IPv4 local connections:'
+    state: present
+  notify: restart postgresql
+
+- name: Also allow VPC subnet with md5 fallback for maximum compatibility
+  ansible.builtin.lineinfile:
+    path: "{{ postgresql_config_dir }}/pg_hba.conf"
+    line: "host    all             all              {{ vpc_cidr }}    md5"
+    insertafter: '^# IPv4 local connections:'
+    state: present
+  notify: restart postgresql
+
+- name: Flush handlers to ensure PostgreSQL restarts with new network bindings
+  ansible.builtin.meta: flush_handlers
+
+- name: Ensure PostgreSQL service is started and enabled
+  ansible.builtin.service:
+    name: postgresql
+    state: started
+    enabled: yes
+
+- name: Allow PostgreSQL port 5432 in UFW from internal VPC subnet
+  community.general.ufw:
+    rule: allow
+    port: '5432'
+    proto: tcp
+    src: "{{ vpc_cidr }}"
+    comment: "PostgreSQL internal cluster access from VPC"
+
+- name: Create database user {{ db_user }}
+  become: yes
+  become_user: postgres
+  community.postgresql.postgresql_user:
+    name: "{{ db_user }}"
+    password: "{{ db_password }}"
+    role_attr_flags: "LOGIN"
+    state: present
+
+- name: Create database {{ db_name }} owned by {{ db_user }}
+  become: yes
+  become_user: postgres
+  community.postgresql.postgresql_db:
+    name: "{{ db_name }}"
+    owner: "{{ db_user }}"
+    encoding: "UTF-8"
+    state: present
+
+- name: Grant all privileges on database {{ db_name }} to {{ db_user }}
+  become: yes
+  become_user: postgres
+  community.postgresql.postgresql_privs:
+    database: "{{ db_name }}"
+    roles: "{{ db_user }}"
+    type: database
+    privs: "ALL"
+    state: present

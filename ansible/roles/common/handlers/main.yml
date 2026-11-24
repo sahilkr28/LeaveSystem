@@ -1,0 +1,10 @@
+---
+# Handlers for roles/common
+- name: restart nagios-nrpe-server
+  ansible.builtin.service:
+    name: nagios-nrpe-server
+    state: restarted
+
+- name: reload ufw
+  ansible.builtin.ufw:
+    state: reloaded

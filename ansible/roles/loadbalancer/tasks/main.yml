@@ -1,0 +1,53 @@
+---
+# Tasks for roles/loadbalancer
+
+- name: Install HAProxy package
+  ansible.builtin.apt:
+    name: haproxy
+    state: present
+
+- name: Allow HTTP port 80 in UFW on load balancer
+  community.general.ufw:
+    rule: allow
+    port: "{{ haproxy_port | string }}"
+    proto: tcp
+    comment: "HAProxy HTTP Public Traffic"
+
+- name: Allow HAProxy Stats port 8404 in UFW on load balancer
+  community.general.ufw:
+    rule: allow
+    port: "{{ haproxy_stats_port | string }}"
+    proto: tcp
+    comment: "HAProxy Monitoring & Statistics Web UI"
+
+- name: Deploy HAProxy configuration from haproxy.cfg.j2
+  ansible.builtin.template:
+    src: haproxy.cfg.j2
+    dest: /etc/haproxy/haproxy.cfg
+    owner: root
+    group: root
+    mode: '0644'
+    validate: 'haproxy -c -f %s'
+  notify: restart haproxy
+
+- name: Flush handlers to restart HAProxy if configuration changed
+  ansible.builtin.meta: flush_handlers
+
+- name: Ensure HAProxy service is enabled and started
+  ansible.builtin.service:
+    name: haproxy
+    state: started
+    enabled: yes
+
+- name: Verify HAProxy Stats Web UI is responsive on localhost:8404
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ haproxy_stats_port }}{{ haproxy_stats_uri }}"
+    method: GET
+    url_username: "{{ haproxy_stats_user }}"
+    url_password: "{{ haproxy_stats_password }}"
+    force_basic_auth: yes
+    status_code: 200
+  register: haproxy_stats_check
+  retries: 5
+  delay: 2
+  until: haproxy_stats_check.status == 200

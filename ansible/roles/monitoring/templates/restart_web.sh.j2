@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# Nagios Self-Healing Event Handler: restart_web.sh
+# Attached to web-01 and web-02 hostel-app health service checks.
+# When service enters CRITICAL HARD state, triggers Ansible healing playbook:
+# ansible-playbook -i /opt/infra/ansible/inventory.ini /opt/infra/ansible/playbooks/heal-web.yml --limit <hostname>
+# ==============================================================================
+
+SERVICE_STATE="$1"        # OK, WARNING, UNKNOWN, CRITICAL
+STATE_TYPE="$2"           # SOFT, HARD
+SERVICE_ATTEMPT="$3"      # Current check attempt (1, 2, 3...)
+TARGET_HOSTNAME="$4"      # Target hostname (web-01, web-02)
+
+EVENT_LOG="/var/log/nagios-eventhandler.log"
+INVENTORY_FILE="/opt/infra/ansible/inventory.ini"
+PLAYBOOK_FILE="/opt/infra/ansible/playbooks/heal-web.yml"
+
+log_event() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [EVENT-HANDLER] $1" >> "$EVENT_LOG"
+}
+
+log_event "Triggered for Host: '${TARGET_HOSTNAME}', State: '${SERVICE_STATE}', Type: '${STATE_TYPE}', Attempt: '${SERVICE_ATTEMPT}'"
+
+case "$SERVICE_STATE" in
+    CRITICAL)
+        case "$STATE_TYPE" in
+            HARD)
+                log_event "CRITICAL HARD state verified on '${TARGET_HOSTNAME}'. Initiating automated self-healing playbook..."
+                
+                # Execute Ansible healing playbook restricted to the affected node
+                if command -v ansible-playbook >/dev/null 2>&1; then
+                    ANSIBLE_BIN=$(command -v ansible-playbook)
+                elif [ -x /usr/local/bin/ansible-playbook ]; then
+                    ANSIBLE_BIN="/usr/local/bin/ansible-playbook"
+                else
+                    ANSIBLE_BIN="/usr/bin/ansible-playbook"
+                fi
+
+                # Run self-healing command
+                sudo -n "$ANSIBLE_BIN" -i "$INVENTORY_FILE" "$PLAYBOOK_FILE" --limit "$TARGET_HOSTNAME" >> "$EVENT_LOG" 2>&1
+                CMD_STATUS=$?
+
+                if [ $CMD_STATUS -eq 0 ]; then
+                    log_event "Self-healing SUCCESS on '${TARGET_HOSTNAME}'. Service recovered."
+                else
+                    log_event "Self-healing playbook execution failed on '${TARGET_HOSTNAME}' with status code $CMD_STATUS."
+                fi
+                ;;
+            SOFT)
+                log_event "CRITICAL SOFT state detected (${SERVICE_ATTEMPT}/3). Monitoring for potential state transition."
+                ;;
+        esac
+        ;;
+    OK)
+        log_event "Service on '${TARGET_HOSTNAME}' is OK. No healing required."
+        ;;
+    *)
+        log_event "Unhandled state '${SERVICE_STATE}' (Type: '${STATE_TYPE}') for '${TARGET_HOSTNAME}'. No action taken."
+        ;;
+esac
+
+exit 0

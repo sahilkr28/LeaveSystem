@@ -1,0 +1,31 @@
+# ==============================================================================
+# Custom Nagios Command Definitions for Smart Campus Hostel
+# Managed by Ansible
+# ==============================================================================
+
+# HTTP check on specified port, endpoint, and expected status code
+define command {
+    command_name    check_http_custom
+    command_line    /usr/lib/nagios/plugins/check_http -H $HOSTADDRESS$ -p $ARG1$ -u $ARG2$ -e $ARG3$
+}
+
+# Generic TCP port check (e.g. for PostgreSQL 5432 or Flask 5000)
+define command {
+    command_name    check_tcp_port
+    command_line    /usr/lib/nagios/plugins/check_tcp -H $HOSTADDRESS$ -p $ARG1$
+}
+
+# Nagios NRPE client plugin invocation
+define command {
+    command_name    check_nrpe
+    command_line    /usr/lib/nagios/plugins/check_nrpe -H $HOSTADDRESS$ -c $ARG1$
+}
+
+# ------------------------------------------------------------------------------
+# Self-Healing Event Handler Command
+# Invokes restart_web.sh with Service State, State Type, Attempt, and Target Host
+# ------------------------------------------------------------------------------
+define command {
+    command_name    restart_web_service
+    command_line    {{ nagios_eventhandler_dir }}/restart_web.sh $SERVICESTATE$ $SERVICESTATETYPE$ $SERVICEATTEMPT$ $HOSTNAME$
+}

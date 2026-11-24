@@ -1,0 +1,512 @@
+{% extends "base.html" %}
+
+{% block title %}Student Portal | {{ app_name }}{% endblock %}
+
+{% block content %}
+<!-- Page Title and Breadcrumb Strip -->
+<div class="d-flex flex-wrap justify-content-between align-items-center pb-2 mb-3 border-bottom">
+    <div>
+        <h4 class="fw-bold text-dark mb-0">
+            <i class="bi bi-mortarboard-fill text-primary me-2"></i>Student Residential Desk & Requests
+        </h4>
+        <small class="text-muted">Submit gate passes, night leaves, and hostel maintenance tickets. Live tracking powered by backend database.</small>
+    </div>
+    <div class="mt-2 mt-md-0 d-flex gap-2">
+        <a href="#section-leaves-table" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-card-checklist me-1"></i> View Submitted Leaves
+        </a>
+        <a href="#section-tickets-table" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-tools me-1"></i> View Maintenance Status
+        </a>
+    </div>
+</div>
+
+<!-- ERP Metric KPI Counters -->
+<div class="row g-3 mb-4">
+    <div class="col-xl-3 col-md-6">
+        <div class="erp-metric-card">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="erp-metric-label">Total Leaves Submitted</div>
+                    <div class="erp-metric-value">{{ stats.total_leaves }}</div>
+                </div>
+                <div class="fs-1 text-primary"><i class="bi bi-journal-text"></i></div>
+            </div>
+            <div class="mt-2 small text-muted">Active and archived gate pass records</div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="erp-metric-card warning-border">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="erp-metric-label">Leaves Pending Approval</div>
+                    <div class="erp-metric-value text-warning">{{ stats.pending_leaves }}</div>
+                </div>
+                <div class="fs-1 text-warning"><i class="bi bi-hourglass-split"></i></div>
+            </div>
+            <div class="mt-2 small text-muted">Awaiting Warden desk verification</div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="erp-metric-card success-border">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="erp-metric-label">Approved Outing Passes</div>
+                    <div class="erp-metric-value text-success">{{ stats.approved_leaves }}</div>
+                </div>
+                <div class="fs-1 text-success"><i class="bi bi-check2-circle"></i></div>
+            </div>
+            <div class="mt-2 small text-muted">Verified gate security clearances</div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="erp-metric-card">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="erp-metric-label">Maintenance Requests</div>
+                    <div class="erp-metric-value">{{ stats.total_tickets }}</div>
+                </div>
+                <div class="fs-1 text-info"><i class="bi bi-wrench-adjustable"></i></div>
+            </div>
+            <div class="mt-2 small text-muted">
+                <span class="text-warning fw-semibold">{{ stats.pending_tickets }} Pending</span> | 
+                <span class="text-success fw-semibold">{{ stats.resolved_tickets }} Resolved</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Forms Section: Side-by-Side Application Desks -->
+<div class="row g-4 mb-4">
+    <!-- Form 1: Leave Application Form -->
+    <div class="col-lg-7">
+        <div class="erp-card shadow-sm h-100">
+            <div class="erp-card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="bi bi-send-check-fill text-primary me-2"></i>
+                    <strong>Hostel Leave / Outing Pass Application</strong>
+                </div>
+                <span class="badge bg-primary-subtle text-primary border border-primary small">ERP Form H-01</span>
+            </div>
+            <div class="card-body p-4">
+                <form action="{{ url_for('apply_leave') }}" method="POST" id="leaveApplicationForm">
+                    
+                    <!-- Leave Type Toggle Selector -->
+                    <div class="mb-3 p-3 bg-light rounded border">
+                        <label class="form-label fw-bold d-block mb-2">
+                            Select Outing Category <span class="text-danger">*</span>
+                        </label>
+                        <div class="d-flex gap-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="leave_type" id="type_day" value="Day Leave" checked>
+                                <label class="form-check-label fw-semibold" for="type_day">
+                                    <i class="bi bi-sun-fill text-warning me-1"></i> Day Leave
+                                    <span class="badge bg-warning text-dark ms-1">Curfew: Max 9:00 PM</span>
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="leave_type" id="type_night" value="Night Leave">
+                                <label class="form-check-label fw-semibold" for="type_night">
+                                    <i class="bi bi-moon-stars-fill text-primary me-1"></i> Night Leave
+                                    <span class="badge bg-info text-dark ms-1">Outstation / Multi-day</span>
+                                </label>
+                            </div>
+                        </div>
+                        <!-- Day Leave Rule Notice -->
+                        <div id="day-curfew-notice" class="mt-2 text-primary small">
+                            <i class="bi bi-info-circle me-1"></i> 
+                            <strong>Curfew Regulation:</strong> Day Outing passes require campus return strictly by <strong>9:00 PM (21:00)</strong> on the departure date.
+                        </div>
+                    </div>
+
+                    <!-- Student Personal & Room Particulars -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Student Full Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="student_name" placeholder="e.g. Aarav Sharma" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Roll / Student ID <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="roll_number" placeholder="e.g. 21BCE1042" required>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Hostel Block <span class="text-danger">*</span></label>
+                            <select class="form-select" name="hostel_block" required>
+                                <option value="" disabled selected>-- Select Hostel Block --</option>
+                                <option value="Block A (Aryabhatta)">Block A (Aryabhatta Boys)</option>
+                                <option value="Block B (Vidyasagar)">Block B (Vidyasagar Boys)</option>
+                                <option value="Block C (Gargi)">Block C (Gargi Girls)</option>
+                                <option value="Block D (Ramanujan)">Block D (Ramanujan Boys)</option>
+                                <option value="PG Block (Homi Bhabha)">PG Block (Homi Bhabha)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Room Number <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="room_number" placeholder="e.g. A-304" required>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Student Phone <span class="text-danger">*</span></label>
+                            <input type="tel" class="form-control" name="contact_number" placeholder="+91-9876543210" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Parent / Guardian Phone <span class="text-danger">*</span></label>
+                            <input type="tel" class="form-control" name="parent_contact" placeholder="+91-9876500001" required>
+                        </div>
+                    </div>
+
+                    <!-- Timings & Dates -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Departure Date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" name="start_date" id="start_date" value="{{ today_str }}" min="{{ today_str }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Departure Time <span class="text-danger">*</span></label>
+                            <input type="time" class="form-control" name="out_time" value="15:00" required>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Expected Return Date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" name="expected_return_date" id="expected_return_date" value="{{ today_str }}" readonly required>
+                            <small class="text-muted" style="font-size: 0.75rem;">(Locked to departure date for Day Leave)</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">
+                                Expected Return Time <span class="text-danger">*</span>
+                                <span class="badge bg-warning text-dark ms-1">Max 21:00 for Day</span>
+                            </label>
+                            <input type="time" class="form-control" name="expected_return_time" id="expected_return_time" value="20:30" max="21:00" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">
+                            Destination Address 
+                            <span id="destination-required-badge" class="badge bg-danger ms-1 d-none">Required for Night Leave</span>
+                        </label>
+                        <input type="text" class="form-control" name="destination" id="destination" placeholder="Optional for Day Outing (Defaults to Campus Vicinity)">
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label small fw-bold">Reason / Purpose of Leave <span class="text-danger">*</span></label>
+                        <textarea class="form-control" name="reason" rows="2" placeholder="Specify genuine reason (e.g. Library visit, Medical checkup, Family visit)" required></textarea>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary py-2 fw-semibold">
+                            <i class="bi bi-file-earmark-arrow-up-fill me-1"></i> Submit Leave Application for Authorization
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form 2: Room Maintenance Ticket Form -->
+    <div class="col-lg-5">
+        <div class="erp-card shadow-sm h-100">
+            <div class="erp-card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="bi bi-tools text-warning me-2"></i>
+                    <strong>Room Maintenance Ticket Form</strong>
+                </div>
+                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning small">ERP Form M-02</span>
+            </div>
+            <div class="card-body p-4">
+                <form action="{{ url_for('submit_maintenance') }}" method="POST">
+                    <p class="text-muted small mb-3">
+                        Report residential infrastructure defects (Electrical, Plumbing, Wi-Fi connectivity, or Carpentry) directly to Campus Estate engineers.
+                    </p>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Student Full Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="student_name" placeholder="e.g. Siddharth Malhotra" required>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Roll / Student ID <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="roll_number" placeholder="e.g. 21BCE1105" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Room Number <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="room_number" placeholder="e.g. A-214" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Hostel Block <span class="text-danger">*</span></label>
+                        <select class="form-select" name="hostel_block" required>
+                            <option value="" disabled selected>-- Select Hostel Block --</option>
+                            <option value="Block A (Aryabhatta)">Block A (Aryabhatta Boys)</option>
+                            <option value="Block B (Vidyasagar)">Block B (Vidyasagar Boys)</option>
+                            <option value="Block C (Gargi)">Block C (Gargi Girls)</option>
+                            <option value="Block D (Ramanujan)">Block D (Ramanujan Boys)</option>
+                            <option value="PG Block (Homi Bhabha)">PG Block (Homi Bhabha)</option>
+                        </select>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-7">
+                            <label class="form-label small fw-bold">Maintenance Category <span class="text-danger">*</span></label>
+                            <select class="form-select" name="category" required>
+                                <option value="" disabled selected>-- Select Trade Category --</option>
+                                <option value="Electrical">⚡ Electrical (Fan, Light, Switchboard)</option>
+                                <option value="Plumbing">🚰 Plumbing (Tap, Flush, Leakage)</option>
+                                <option value="Wi-Fi">📶 Wi-Fi / LAN Network Issue</option>
+                                <option value="Carpentry">🪑 Carpentry / Door / Window</option>
+                                <option value="Other">🛠️ Other Facility Issue</option>
+                            </select>
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label small fw-bold">Urgency Level <span class="text-danger">*</span></label>
+                            <select class="form-select" name="urgency" required>
+                                <option value="Low">Low (Routine)</option>
+                                <option value="Medium" selected>Medium (Standard)</option>
+                                <option value="High">High (Urgent)</option>
+                                <option value="Emergency">Emergency (Immediate)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label small fw-bold">Defect Description & Specifics <span class="text-danger">*</span></label>
+                        <textarea class="form-control" name="description" rows="3" placeholder="Describe the defect clearly so maintenance personnel can arrive with appropriate tools." required></textarea>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-warning py-2 fw-semibold text-dark">
+                            <i class="bi bi-wrench me-1"></i> Log Maintenance Ticket
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================== -->
+<!-- Live Database Records Section -->
+<!-- ========================================== -->
+
+<!-- Live Table 1: Submitted Leave Requests -->
+<div class="erp-card shadow-sm mb-4" id="section-leaves-table">
+    <div class="erp-card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div>
+            <i class="bi bi-journal-check text-primary me-2"></i>
+            <strong>Submitted Outing & Leave Applications (Live Database Records)</strong>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <input type="text" id="search-leaves-input" class="form-control form-control-sm" placeholder="Search student or roll..." style="width: 220px;">
+            <span class="badge bg-secondary font-monospace">{{ leaves|length }} Total</span>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table erp-table table-hover align-middle mb-0" id="leaves-table">
+            <thead>
+                <tr>
+                    <th>Ref #</th>
+                    <th>Student Details</th>
+                    <th>Block & Room</th>
+                    <th>Leave Type</th>
+                    <th>Departure Window</th>
+                    <th>Expected Return</th>
+                    <th>Destination & Purpose</th>
+                    <th>Approval Status</th>
+                    <th>Warden Remarks</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if leaves %}
+                    {% for l in leaves %}
+                    <tr>
+                        <td class="font-monospace fw-bold text-muted">#{{ l.id }}</td>
+                        <td>
+                            <div class="fw-bold">{{ l.student_name }}</div>
+                            <small class="text-muted font-monospace">{{ l.roll_number }}</small>
+                            <div style="font-size: 0.72rem;" class="text-secondary">📞 {{ l.contact_number }}</div>
+                        </td>
+                        <td>
+                            <div>{{ l.hostel_block }}</div>
+                            <span class="badge bg-light text-dark border">{{ l.room_number }}</span>
+                        </td>
+                        <td>
+                            {% if l.leave_type == 'Day Leave' %}
+                                <span class="badge bg-warning text-dark border border-warning">
+                                    <i class="bi bi-sun-fill me-1"></i>Day Leave
+                                </span>
+                            {% else %}
+                                <span class="badge bg-primary">
+                                    <i class="bi bi-moon-stars-fill me-1"></i>Night Leave
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="fw-semibold">{{ l.start_date }}</div>
+                            <small class="text-muted"><i class="bi bi-clock me-1"></i>{{ l.out_time }}</small>
+                        </td>
+                        <td>
+                            <div class="fw-semibold">{{ l.expected_return_date }}</div>
+                            <small class="{% if l.leave_type == 'Day Leave' and l.expected_return_time > '21:00' %}text-danger fw-bold{% else %}text-muted{% endif %}">
+                                <i class="bi bi-clock me-1"></i>{{ l.expected_return_time }}
+                            </small>
+                        </td>
+                        <td style="max-width: 240px;">
+                            <div class="text-truncate fw-semibold" title="{{ l.destination }}">
+                                <i class="bi bi-geo-alt text-danger me-1"></i>{{ l.destination }}
+                            </div>
+                            <small class="text-muted d-block text-truncate" title="{{ l.reason }}">{{ l.reason }}</small>
+                        </td>
+                        <td>
+                            {% if l.status == 'Approved' %}
+                                <span class="badge badge-status-approved rounded-pill">
+                                    <i class="bi bi-check-circle-fill me-1"></i>Approved
+                                </span>
+                            {% elif l.status == 'Rejected' %}
+                                <span class="badge badge-status-rejected rounded-pill">
+                                    <i class="bi bi-x-circle-fill me-1"></i>Rejected
+                                </span>
+                            {% else %}
+                                <span class="badge badge-status-pending rounded-pill">
+                                    <i class="bi bi-hourglass-split me-1"></i>Pending
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td style="max-width: 200px;">
+                            {% if l.warden_remarks %}
+                                <small class="text-dark">{{ l.warden_remarks }}</small>
+                            {% else %}
+                                <span class="text-muted fst-italic small">Awaiting review</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="9" class="text-center py-4 text-muted">
+                            <i class="bi bi-inbox fs-2 d-block text-secondary mb-2"></i>
+                            No leave applications submitted yet. Use the form above to apply.
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Live Table 2: Room Maintenance Requests -->
+<div class="erp-card shadow-sm mb-4" id="section-tickets-table">
+    <div class="erp-card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div>
+            <i class="bi bi-wrench text-warning me-2"></i>
+            <strong>Room Maintenance & Facility Tickets (Live Database Records)</strong>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <input type="text" id="search-tickets-input" class="form-control form-control-sm" placeholder="Search category or room..." style="width: 220px;">
+            <span class="badge bg-secondary font-monospace">{{ tickets|length }} Total</span>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table erp-table table-hover align-middle mb-0" id="tickets-table">
+            <thead>
+                <tr>
+                    <th>Ticket ID</th>
+                    <th>Reported By</th>
+                    <th>Location</th>
+                    <th>Trade Category</th>
+                    <th>Priority</th>
+                    <th>Defect Description</th>
+                    <th>Current Status</th>
+                    <th>Logged Date</th>
+                    <th>Resolution Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if tickets %}
+                    {% for t in tickets %}
+                    <tr>
+                        <td class="font-monospace fw-bold text-muted">#T-{{ t.id }}</td>
+                        <td>
+                            <div class="fw-semibold">{{ t.student_name }}</div>
+                            <small class="text-muted font-monospace">{{ t.roll_number }}</small>
+                        </td>
+                        <td>
+                            <div>{{ t.hostel_block }}</div>
+                            <span class="badge bg-light text-dark border">{{ t.room_number }}</span>
+                        </td>
+                        <td>
+                            {% if t.category == 'Electrical' %}
+                                <span class="badge bg-warning-subtle text-dark border border-warning">⚡ Electrical</span>
+                            {% elif t.category == 'Plumbing' %}
+                                <span class="badge bg-info-subtle text-dark border border-info">🚰 Plumbing</span>
+                            {% elif t.category == 'Wi-Fi' %}
+                                <span class="badge bg-primary-subtle text-dark border border-primary">📶 Wi-Fi / LAN</span>
+                            {% elif t.category == 'Carpentry' %}
+                                <span class="badge bg-secondary-subtle text-dark border border-secondary">🪑 Carpentry</span>
+                            {% else %}
+                                <span class="badge bg-light text-dark border">🛠️ {{ t.category }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if t.urgency == 'Emergency' %}
+                                <span class="badge bg-danger">Emergency</span>
+                            {% elif t.urgency == 'High' %}
+                                <span class="badge bg-warning text-dark">High</span>
+                            {% elif t.urgency == 'Medium' %}
+                                <span class="badge bg-info text-dark">Medium</span>
+                            {% else %}
+                                <span class="badge bg-light text-dark border">Low</span>
+                            {% endif %}
+                        </td>
+                        <td style="max-width: 280px;">
+                            <div class="text-truncate" title="{{ t.description }}">{{ t.description }}</div>
+                        </td>
+                        <td>
+                            {% if t.status == 'Resolved' %}
+                                <span class="badge badge-status-resolved rounded-pill">
+                                    <i class="bi bi-check-all me-1"></i>Resolved
+                                </span>
+                            {% elif t.status == 'In Progress' %}
+                                <span class="badge badge-status-inprogress rounded-pill">
+                                    <i class="bi bi-arrow-repeat me-1"></i>In Progress
+                                </span>
+                            {% else %}
+                                <span class="badge badge-status-pending rounded-pill">
+                                    <i class="bi bi-clock me-1"></i>Pending
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="text-nowrap small text-muted">
+                            {{ t.created_at.strftime("%d-%b-%Y %H:%M") if t.created_at else "-" }}
+                        </td>
+                        <td style="max-width: 220px;">
+                            {% if t.warden_notes %}
+                                <small class="text-success">{{ t.warden_notes }}</small>
+                            {% else %}
+                                <span class="text-muted fst-italic small">Pending technician dispatch</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="9" class="text-center py-4 text-muted">
+                            <i class="bi bi-tools fs-2 d-block text-secondary mb-2"></i>
+                            No maintenance tickets logged. All hostel rooms operational.
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}

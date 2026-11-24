@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: hostel_postgres_db
+    restart: always
+    environment:
+      POSTGRES_USER: hostel_admin
+      POSTGRES_PASSWORD: hostel_secure_password
+      POSTGRES_DB: hostel_erp_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./app/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hostel_admin -d hostel_erp_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hostel_erp_web
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://hostel_admin:hostel_secure_password@db:5432/hostel_erp_db
+      WARDEN_PASSWORD: warden_production_secure_pass_2026
+      SECRET_KEY: super-secret-production-erp-token-2026
+    ports:
+      - "5000:5000"
+    command: ["gunicorn", "-w", "2", "-b", "0.0.0.0:5000", "app:app"]
+
+volumes:
+  postgres_data:

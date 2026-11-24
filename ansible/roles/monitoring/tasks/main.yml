@@ -1,0 +1,136 @@
+---
+# Tasks for roles/monitoring (Nagios Core on ops-node)
+
+- name: Install Nagios Core, Apache2, PHP, and monitoring plugins
+  ansible.builtin.apt:
+    name:
+      - nagios4
+      - nagios4-cgi
+      - nagios4-common
+      - nagios-plugins
+      - nagios-plugins-basic
+      - nagios-nrpe-plugin
+      - apache2
+      - apache2-utils
+      - php
+      - libapache2-mod-php
+      - sudo
+    state: present
+
+- name: Enable Apache CGI and rewrite modules
+  community.general.apache2_module:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - cgi
+    - rewrite
+  notify: restart apache2
+
+- name: Create Nagios Web UI admin authentication credentials (htpasswd)
+  community.general.htpasswd:
+    path: "{{ nagios_config_dir }}/htpasswd.users"
+    name: "{{ nagios_admin_user }}"
+    password: "{{ nagios_admin_password }}"
+    owner: www-data
+    group: www-data
+    mode: '0640'
+
+- name: Enable Nagios CGI configuration in Apache
+  ansible.builtin.command:
+    cmd: a2enconf nagios4-cgi
+  args:
+    creates: /etc/apache2/conf-enabled/nagios4-cgi.conf
+  notify: restart apache2
+
+- name: Create event handlers directory /usr/local/nagios/libexec/eventhandlers
+  ansible.builtin.file:
+    path: "{{ nagios_eventhandler_dir }}"
+    state: directory
+    owner: nagios
+    group: nagios
+    mode: '0755'
+    recurse: yes
+
+- name: Deploy restart_web.sh event handler script
+  ansible.builtin.template:
+    src: restart_web.sh.j2
+    dest: "{{ nagios_eventhandler_dir }}/restart_web.sh"
+    owner: nagios
+    group: nagios
+    mode: '0755'
+
+- name: Ensure event handlers are enabled in nagios.cfg
+  ansible.builtin.lineinfile:
+    path: "{{ nagios_config_dir }}/nagios.cfg"
+    regexp: '^enable_event_handlers\s*='
+    line: "enable_event_handlers=1"
+    state: present
+  notify: restart nagios
+
+- name: Deploy Nagios command definitions (commands.cfg)
+  ansible.builtin.template:
+    src: commands.cfg.j2
+    dest: "{{ nagios_config_dir }}/conf.d/commands_custom.cfg"
+    owner: nagios
+    group: nagios
+    mode: '0644'
+  notify: restart nagios
+
+- name: Deploy Smart Hostel cluster hosts and services definition
+  ansible.builtin.template:
+    src: smart_hostel_cluster.cfg.j2
+    dest: "{{ nagios_config_dir }}/conf.d/smart_hostel_cluster.cfg"
+    owner: nagios
+    group: nagios
+    mode: '0644'
+  notify: restart nagios
+
+- name: Configure sudoers for nagios user to execute ansible-playbook without password
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/nagios-self-heal
+    content: |
+      # Allow nagios user to execute self-healing playbook without password
+      nagios ALL=(ALL) NOPASSWD: /usr/bin/ansible-playbook, /usr/local/bin/ansible-playbook
+    owner: root
+    group: root
+    mode: '0440'
+    validate: 'visudo -cf %s'
+
+- name: Ensure /opt/infra/ansible directory tree exists
+  ansible.builtin.file:
+    path: "{{ infra_ansible_dir }}/playbooks"
+    state: directory
+    owner: "{{ infra_user }}"
+    group: "{{ infra_user }}"
+    mode: '0755'
+    recurse: yes
+
+- name: Synchronize current ansible configuration and playbooks to /opt/infra/ansible
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../"
+    dest: "{{ infra_ansible_dir }}/"
+    owner: "{{ infra_user }}"
+    group: "{{ infra_user }}"
+    mode: '0755'
+
+- name: Allow HTTP port 80 in UFW for Nagios Web UI access
+  community.general.ufw:
+    rule: allow
+    port: '80'
+    proto: tcp
+    comment: "Nagios Web UI Dashboard Access"
+
+- name: Flush handlers to ensure Nagios and Apache configurations reload
+  ansible.builtin.meta: flush_handlers
+
+- name: Ensure nagios4 service is enabled and started
+  ansible.builtin.service:
+    name: nagios4
+    state: started
+    enabled: yes
+
+- name: Ensure apache2 service is enabled and started
+  ansible.builtin.service:
+    name: apache2
+    state: started
+    enabled: yes

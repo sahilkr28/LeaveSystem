@@ -1,0 +1,147 @@
+# ==============================================================================
+# Smart Campus Hostel Infrastructure Host & Service Definitions
+# Managed by Ansible - Nagios Core Configuration
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. Host Definitions
+# ------------------------------------------------------------------------------
+
+# Load Balancer Node (lb-01)
+define host {
+    use                     generic-host
+    host_name               lb-01
+    alias                   HAProxy Load Balancer
+    address                 {{ hostvars['lb-01']['private_ip'] | default(hostvars['lb-01']['ansible_host'] | default('10.0.1.20')) }}
+    max_check_attempts      3
+    check_period            24x7
+    notification_interval   30
+    notification_period     24x7
+}
+
+# Web Server 01 (web-01)
+define host {
+    use                     generic-host
+    host_name               web-01
+    alias                   Flask Web Application Node 1
+    address                 {{ hostvars['web-01']['private_ip'] | default(hostvars['web-01']['ansible_host'] | default('10.0.1.31')) }}
+    max_check_attempts      3
+    check_period            24x7
+    notification_interval   30
+    notification_period     24x7
+}
+
+# Web Server 02 (web-02)
+define host {
+    use                     generic-host
+    host_name               web-02
+    alias                   Flask Web Application Node 2
+    address                 {{ hostvars['web-02']['private_ip'] | default(hostvars['web-02']['ansible_host'] | default('10.0.1.32')) }}
+    max_check_attempts      3
+    check_period            24x7
+    notification_interval   30
+    notification_period     24x7
+}
+
+# Database Node (db-01)
+define host {
+    use                     generic-host
+    host_name               db-01
+    alias                   PostgreSQL Database Node
+    address                 {{ hostvars['db-01']['private_ip'] | default(hostvars['db-01']['ansible_host'] | default('10.0.1.40')) }}
+    max_check_attempts      3
+    check_period            24x7
+    notification_interval   30
+    notification_period     24x7
+}
+
+# ------------------------------------------------------------------------------
+# 2. Service Definitions: Load Balancer (lb-01)
+# ------------------------------------------------------------------------------
+
+# Service: HTTP 200 OK on lb-01 (Port 80)
+define service {
+    use                     generic-service
+    host_name               lb-01
+    service_description     HTTP_Port_80_Status_200
+    check_command           check_http_custom!80!/!200
+    check_interval          1
+    retry_interval          1
+    max_check_attempts      3
+    notification_interval   30
+}
+
+# ------------------------------------------------------------------------------
+# 3. Service Definitions: Web Servers (web-01 & web-02) with Self-Healing Event Handler
+# ------------------------------------------------------------------------------
+
+# Service: hostel-app Port 5000 and /health Endpoint on web-01
+define service {
+    use                     generic-service
+    host_name               web-01
+    service_description     Hostel_App_Port_5000_Health
+    check_command           check_http_custom!5000!/health!200
+    check_interval          1
+    retry_interval          1
+    max_check_attempts      3
+    event_handler           restart_web_service
+    event_handler_enabled   1
+    notification_interval   30
+}
+
+# Service: hostel-app Port 5000 and /health Endpoint on web-02
+define service {
+    use                     generic-service
+    host_name               web-02
+    service_description     Hostel_App_Port_5000_Health
+    check_command           check_http_custom!5000!/health!200
+    check_interval          1
+    retry_interval          1
+    max_check_attempts      3
+    event_handler           restart_web_service
+    event_handler_enabled   1
+    notification_interval   30
+}
+
+# ------------------------------------------------------------------------------
+# 4. Service Definitions: Database (db-01)
+# ------------------------------------------------------------------------------
+
+# Service: PostgreSQL Port 5432 on db-01
+define service {
+    use                     generic-service
+    host_name               db-01
+    service_description     PostgreSQL_Port_5432
+    check_command           check_tcp_port!5432
+    check_interval          1
+    retry_interval          1
+    max_check_attempts      3
+    notification_interval   30
+}
+
+# ------------------------------------------------------------------------------
+# 5. Service Definitions: CPU Load & Disk Usage via NRPE across all cluster nodes
+# ------------------------------------------------------------------------------
+{% for h in ['lb-01', 'web-01', 'web-02', 'db-01'] %}
+define service {
+    use                     generic-service
+    host_name               {{ h }}
+    service_description     CPU_Load_NRPE
+    check_command           check_nrpe!check_load
+    check_interval          1
+    retry_interval          1
+    max_check_attempts      3
+    notification_interval   30
+}
+
+define service {
+    use                     generic-service
+    host_name               {{ h }}
+    service_description     Disk_Usage_NRPE
+    check_command           check_nrpe!check_disk_root
+    check_interval          1
+    retry_interval          1
+    max_check_attempts      3
+    notification_interval   30
+}
+{% endfor %}

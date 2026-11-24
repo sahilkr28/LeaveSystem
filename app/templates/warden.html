@@ -1,0 +1,371 @@
+{% extends "base.html" %}
+
+{% block title %}Warden Control Panel | {{ app_name }}{% endblock %}
+
+{% block content %}
+<!-- Top Header & Session Bar -->
+<div class="d-flex flex-wrap justify-content-between align-items-center pb-2 mb-3 border-bottom">
+    <div>
+        <h4 class="fw-bold text-dark mb-0">
+            <i class="bi bi-shield-check text-success me-2"></i>Warden Operations & Authorization Control
+        </h4>
+        <small class="text-muted">Review student leave requests, authorize gate passes, and supervise hostel facility maintenance tickets.</small>
+    </div>
+    <div class="mt-2 mt-md-0 d-flex align-items-center gap-2">
+        <span class="badge bg-success-subtle text-success border border-success px-3 py-2">
+            <i class="bi bi-person-badge-fill me-1"></i> Warden Session Active
+        </span>
+        <a href="{{ url_for('warden_logout') }}" class="btn btn-outline-danger btn-sm">
+            <i class="bi bi-box-arrow-right me-1"></i> Sign Out
+        </a>
+    </div>
+</div>
+
+<!-- KPI Summary Metric Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-xl-3 col-md-6">
+        <div class="erp-metric-card warning-border">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="erp-metric-label">Pending Leave Decisions</div>
+                    <div class="erp-metric-value text-warning">{{ stats.pending_leaves }}</div>
+                </div>
+                <div class="fs-1 text-warning"><i class="bi bi-hourglass-bottom"></i></div>
+            </div>
+            <div class="mt-2 small text-muted">Awaiting your approval or rejection</div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="erp-metric-card success-border">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="erp-metric-label">Approved Passes</div>
+                    <div class="erp-metric-value text-success">{{ stats.approved_leaves }}</div>
+                </div>
+                <div class="fs-1 text-success"><i class="bi bi-check2-circle"></i></div>
+            </div>
+            <div class="mt-2 small text-muted">Cleared for campus exit gate</div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="erp-metric-card danger-border">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="erp-metric-label">Rejected Requests</div>
+                    <div class="erp-metric-value text-danger">{{ stats.rejected_leaves }}</div>
+                </div>
+                <div class="fs-1 text-danger"><i class="bi bi-x-octagon"></i></div>
+            </div>
+            <div class="mt-2 small text-muted">Declined / Curfew violations</div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="erp-metric-card">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="erp-metric-label">Pending Room Tickets</div>
+                    <div class="erp-metric-value text-info">{{ stats.pending_tickets }}</div>
+                </div>
+                <div class="fs-1 text-info"><i class="bi bi-wrench"></i></div>
+            </div>
+            <div class="mt-2 small text-muted">
+                {{ stats.in_progress_tickets }} In Progress | {{ stats.resolved_tickets }} Resolved
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================== -->
+<!-- 1. Student Leave Authorization Desk -->
+<!-- ========================================== -->
+<div class="erp-card shadow-sm mb-4">
+    <div class="erp-card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-pass-fill text-primary fs-5"></i>
+            <strong>Student Leave & Outing Applications Desk</strong>
+        </div>
+        <!-- Status Filter Nav Pills -->
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <div class="btn-group btn-group-sm" role="group" aria-label="Leave Filter">
+                <a href="{{ url_for('warden_dashboard', leave_filter='all', ticket_filter=current_ticket_filter) }}" class="btn {% if current_leave_filter == 'all' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                    All ({{ stats.total_leaves }})
+                </a>
+                <a href="{{ url_for('warden_dashboard', leave_filter='pending', ticket_filter=current_ticket_filter) }}" class="btn {% if current_leave_filter == 'pending' %}btn-warning text-dark fw-bold{% else %}btn-outline-secondary{% endif %}">
+                    Pending ({{ stats.pending_leaves }})
+                </a>
+                <a href="{{ url_for('warden_dashboard', leave_filter='approved', ticket_filter=current_ticket_filter) }}" class="btn {% if current_leave_filter == 'approved' %}btn-success{% else %}btn-outline-secondary{% endif %}">
+                    Approved ({{ stats.approved_leaves }})
+                </a>
+                <a href="{{ url_for('warden_dashboard', leave_filter='rejected', ticket_filter=current_ticket_filter) }}" class="btn {% if current_leave_filter == 'rejected' %}btn-danger{% else %}btn-outline-secondary{% endif %}">
+                    Rejected ({{ stats.rejected_leaves }})
+                </a>
+            </div>
+            <input type="text" id="warden-leaves-search" class="form-control form-control-sm" placeholder="Filter student/roll..." style="width: 180px;">
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table erp-table table-hover align-middle mb-0" id="warden-leaves-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Student Particulars</th>
+                    <th>Hostel Room</th>
+                    <th>Category</th>
+                    <th>Outing Window</th>
+                    <th>Destination & Purpose</th>
+                    <th>Parent Phone</th>
+                    <th>Current Status</th>
+                    <th>Warden Action / Remarks</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if leaves %}
+                    {% for l in leaves %}
+                    <tr class="{% if l.status == 'Pending' %}table-warning-subtle{% endif %}">
+                        <td class="font-monospace fw-bold text-muted">#{{ l.id }}</td>
+                        <td>
+                            <div class="fw-bold">{{ l.student_name }}</div>
+                            <small class="text-muted font-monospace">{{ l.roll_number }}</small>
+                            <div style="font-size: 0.72rem;" class="text-secondary">📱 {{ l.contact_number }}</div>
+                        </td>
+                        <td>
+                            <div>{{ l.hostel_block }}</div>
+                            <span class="badge bg-light text-dark border">{{ l.room_number }}</span>
+                        </td>
+                        <td>
+                            {% if l.leave_type == 'Day Leave' %}
+                                <span class="badge bg-warning text-dark border border-warning">
+                                    <i class="bi bi-sun-fill me-1"></i>Day Leave
+                                </span>
+                            {% else %}
+                                <span class="badge bg-primary">
+                                    <i class="bi bi-moon-stars-fill me-1"></i>Night Leave
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="small">
+                                <strong>Out:</strong> {{ l.start_date }} at {{ l.out_time }}
+                            </div>
+                            <div class="small {% if l.leave_type == 'Day Leave' and l.expected_return_time > '21:00' %}text-danger fw-bold{% else %}text-muted{% endif %}">
+                                <strong>In:</strong> {{ l.expected_return_date }} by {{ l.expected_return_time }}
+                            </div>
+                        </td>
+                        <td style="max-width: 220px;">
+                            <div class="fw-semibold text-truncate" title="{{ l.destination }}">
+                                <i class="bi bi-geo-alt text-danger me-1"></i>{{ l.destination }}
+                            </div>
+                            <small class="text-muted d-block text-truncate" title="{{ l.reason }}">
+                                {{ l.reason }}
+                            </small>
+                        </td>
+                        <td>
+                            <a href="tel:{{ l.parent_contact }}" class="badge bg-light text-dark border text-decoration-none">
+                                <i class="bi bi-telephone-fill text-success me-1"></i>{{ l.parent_contact }}
+                            </a>
+                        </td>
+                        <td>
+                            {% if l.status == 'Approved' %}
+                                <span class="badge badge-status-approved rounded-pill">
+                                    <i class="bi bi-check-circle-fill me-1"></i>Approved
+                                </span>
+                            {% elif l.status == 'Rejected' %}
+                                <span class="badge badge-status-rejected rounded-pill">
+                                    <i class="bi bi-x-circle-fill me-1"></i>Rejected
+                                </span>
+                            {% else %}
+                                <span class="badge badge-status-pending rounded-pill">
+                                    <i class="bi bi-hourglass-split me-1"></i>Pending
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td style="min-width: 260px;">
+                            <!-- Warden Action Form -->
+                            <form action="{{ url_for('warden_leave_action', leave_id=l.id) }}" method="POST" class="d-flex flex-column gap-1">
+                                <div class="input-group input-group-sm">
+                                    <input 
+                                        type="text" 
+                                        class="form-control form-control-sm" 
+                                        name="remarks" 
+                                        placeholder="Add remarks / reason..."
+                                        value="{{ l.warden_remarks or '' }}"
+                                    >
+                                </div>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <button 
+                                        type="submit" 
+                                        name="action" 
+                                        value="Approved" 
+                                        class="btn btn-success btn-sm {% if l.status == 'Approved' %}disabled{% endif %}"
+                                        title="Grant Outing Pass"
+                                    >
+                                        <i class="bi bi-check-lg me-1"></i> Approve
+                                    </button>
+                                    <button 
+                                        type="submit" 
+                                        name="action" 
+                                        value="Rejected" 
+                                        class="btn btn-danger btn-sm {% if l.status == 'Rejected' %}disabled{% endif %}"
+                                        title="Reject Outing Request"
+                                    >
+                                        <i class="bi bi-x-lg me-1"></i> Reject
+                                    </button>
+                                </div>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="9" class="text-center py-4 text-muted">
+                            <i class="bi bi-check2-all fs-2 d-block text-success mb-2"></i>
+                            No leave requests match the selected filter.
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ========================================== -->
+<!-- 2. Room Maintenance & Facilities Desk -->
+<!-- ========================================== -->
+<div class="erp-card shadow-sm mb-4">
+    <div class="erp-card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-wrench-adjustable-circle-fill text-warning fs-5"></i>
+            <strong>Hostel Maintenance & Facilities Dispatch Desk</strong>
+        </div>
+        <!-- Status Filter Nav Pills -->
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <div class="btn-group btn-group-sm" role="group" aria-label="Ticket Filter">
+                <a href="{{ url_for('warden_dashboard', leave_filter=current_leave_filter, ticket_filter='all') }}" class="btn {% if current_ticket_filter == 'all' %}btn-secondary{% else %}btn-outline-secondary{% endif %}">
+                    All ({{ stats.total_tickets }})
+                </a>
+                <a href="{{ url_for('warden_dashboard', leave_filter=current_leave_filter, ticket_filter='pending') }}" class="btn {% if current_ticket_filter == 'pending' %}btn-warning text-dark fw-bold{% else %}btn-outline-secondary{% endif %}">
+                    Pending ({{ stats.pending_tickets }})
+                </a>
+                <a href="{{ url_for('warden_dashboard', leave_filter=current_leave_filter, ticket_filter='in_progress') }}" class="btn {% if current_ticket_filter == 'in_progress' %}btn-info text-dark fw-bold{% else %}btn-outline-secondary{% endif %}">
+                    In Progress ({{ stats.in_progress_tickets }})
+                </a>
+                <a href="{{ url_for('warden_dashboard', leave_filter=current_leave_filter, ticket_filter='resolved') }}" class="btn {% if current_ticket_filter == 'resolved' %}btn-success{% else %}btn-outline-secondary{% endif %}">
+                    Resolved ({{ stats.resolved_tickets }})
+                </a>
+            </div>
+            <input type="text" id="warden-tickets-search" class="form-control form-control-sm" placeholder="Filter tickets..." style="width: 160px;">
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table erp-table table-hover align-middle mb-0" id="warden-tickets-table">
+            <thead>
+                <tr>
+                    <th>Ticket</th>
+                    <th>Reported By</th>
+                    <th>Room Location</th>
+                    <th>Category</th>
+                    <th>Urgency</th>
+                    <th>Issue Description</th>
+                    <th>Current Status</th>
+                    <th>Resolution / Warden Notes</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if tickets %}
+                    {% for t in tickets %}
+                    <tr class="{% if t.status == 'Pending' %}table-warning-subtle{% endif %}">
+                        <td class="font-monospace fw-bold text-muted">#T-{{ t.id }}</td>
+                        <td>
+                            <div class="fw-semibold">{{ t.student_name }}</div>
+                            <small class="text-muted font-monospace">{{ t.roll_number }}</small>
+                        </td>
+                        <td>
+                            <div>{{ t.hostel_block }}</div>
+                            <span class="badge bg-light text-dark border">{{ t.room_number }}</span>
+                        </td>
+                        <td>
+                            {% if t.category == 'Electrical' %}
+                                <span class="badge bg-warning-subtle text-dark border border-warning">⚡ Electrical</span>
+                            {% elif t.category == 'Plumbing' %}
+                                <span class="badge bg-info-subtle text-dark border border-info">🚰 Plumbing</span>
+                            {% elif t.category == 'Wi-Fi' %}
+                                <span class="badge bg-primary-subtle text-dark border border-primary">📶 Wi-Fi</span>
+                            {% elif t.category == 'Carpentry' %}
+                                <span class="badge bg-secondary-subtle text-dark border border-secondary">🪑 Carpentry</span>
+                            {% else %}
+                                <span class="badge bg-light text-dark border">🛠️ {{ t.category }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if t.urgency == 'Emergency' %}
+                                <span class="badge bg-danger">Emergency</span>
+                            {% elif t.urgency == 'High' %}
+                                <span class="badge bg-warning text-dark">High</span>
+                            {% elif t.urgency == 'Medium' %}
+                                <span class="badge bg-info text-dark">Medium</span>
+                            {% else %}
+                                <span class="badge bg-light text-dark border">Low</span>
+                            {% endif %}
+                        </td>
+                        <td style="max-width: 250px;">
+                            <div class="text-truncate" title="{{ t.description }}">{{ t.description }}</div>
+                            <small class="text-muted d-block" style="font-size: 0.72rem;">Logged: {{ t.created_at.strftime("%d-%b-%Y %H:%M") if t.created_at else "-" }}</small>
+                        </td>
+                        <td>
+                            {% if t.status == 'Resolved' %}
+                                <span class="badge badge-status-resolved rounded-pill">
+                                    <i class="bi bi-check-all me-1"></i>Resolved
+                                </span>
+                            {% elif t.status == 'In Progress' %}
+                                <span class="badge badge-status-inprogress rounded-pill">
+                                    <i class="bi bi-arrow-repeat me-1"></i>In Progress
+                                </span>
+                            {% else %}
+                                <span class="badge badge-status-pending rounded-pill">
+                                    <i class="bi bi-clock me-1"></i>Pending
+                                </span>
+                            {% endif %}
+                        </td>
+                        <!-- Action Form to Update Ticket Status & Mark Resolved -->
+                        <td colspan="2" style="min-width: 320px;">
+                            <form action="{{ url_for('warden_ticket_action', ticket_id=t.id) }}" method="POST" class="d-flex gap-2 align-items-center">
+                                <div class="flex-grow-1">
+                                    <input 
+                                        type="text" 
+                                        class="form-control form-control-sm mb-1" 
+                                        name="notes" 
+                                        placeholder="Resolution or technician note..." 
+                                        value="{{ t.warden_notes or '' }}"
+                                    >
+                                    <select class="form-select form-select-sm" name="status">
+                                        <option value="Pending" {% if t.status == 'Pending' %}selected{% endif %}>Pending</option>
+                                        <option value="In Progress" {% if t.status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                                        <option value="Resolved" {% if t.status == 'Resolved' %}selected{% endif %}>Mark as Resolved</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <button type="submit" class="btn btn-sm btn-outline-primary text-nowrap">
+                                        <i class="bi bi-save me-1"></i> Save
+                                    </button>
+                                </div>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="9" class="text-center py-4 text-muted">
+                            <i class="bi bi-check2-all fs-2 d-block text-success mb-2"></i>
+                            No maintenance tickets match the selected filter.
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}

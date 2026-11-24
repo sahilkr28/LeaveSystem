@@ -1,0 +1,49 @@
+---
+# ==============================================================================
+# Self-Healing Playbook for Smart Hostel Webservers
+# Invoked by Nagios event handler when hostel-app enters CRITICAL HARD state
+# Execution:
+# ansible-playbook -i /opt/infra/ansible/inventory.ini /opt/infra/ansible/playbooks/heal-web.yml --limit <hostname>
+# ==============================================================================
+
+- name: Automated Self-Healing Recovery for Web Application
+  hosts: webservers
+  become: yes
+  gather_facts: no
+
+  vars:
+    app_port: 5000
+    service_name: hostel-app
+    heal_log_path: /var/log/self-heal.log
+
+  tasks:
+    - name: Record recovery initiation in self-healing log
+      ansible.builtin.shell: |
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] [HEAL-START] Self-healing initiated on {{ inventory_hostname }} due to Nagios CRITICAL alert." >> "{{ heal_log_path }}"
+      args:
+        executable: /bin/bash
+
+    - name: Restart hostel-app.service on affected web server
+      ansible.builtin.service:
+        name: "{{ service_name }}"
+        state: restarted
+
+    - name: Wait for http://localhost:5000/health to return HTTP 200
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ app_port }}/health"
+        method: GET
+        status_code: 200
+      register: health_result
+      retries: 15
+      delay: 2
+      until: health_result.status == 200
+
+    - name: Log successful recovery timestamp to /var/log/self-heal.log
+      ansible.builtin.shell: |
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] [HEAL-SUCCESS] Node {{ inventory_hostname }} successfully recovered: {{ service_name }} active and /health returned HTTP 200 (Reported Host: {{ health_result.json.host | default(inventory_hostname) }})." >> "{{ heal_log_path }}"
+      args:
+        executable: /bin/bash
+
+    - name: Output recovery confirmation
+      ansible.builtin.debug:
+        msg: "Self-healing SUCCESS on {{ inventory_hostname }}! Service hostel-app recovered and /health verified."

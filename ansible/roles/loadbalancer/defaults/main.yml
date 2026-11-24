@@ -1,0 +1,8 @@
+---
+# Defaults for roles/loadbalancer
+haproxy_port: 80
+haproxy_stats_port: 8404
+haproxy_stats_uri: /stats
+haproxy_stats_user: admin
+haproxy_stats_password: admin_cluster_pass_2026
+backend_app_port: 5000

@@ -1,0 +1,36 @@
+[Unit]
+Description=Smart Campus Hostel ERP Web Application Service
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{ app_user }}
+Group={{ app_group }}
+WorkingDirectory={{ app_root_dir }}
+
+# Environment Configuration
+Environment="PATH={{ app_root_dir }}/venv/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="DATABASE_URL=postgresql://{{ db_user }}:{{ db_password }}@{{ db_host }}:{{ db_port }}/{{ db_name }}"
+Environment="WARDEN_PASSWORD={{ warden_password }}"
+Environment="SECRET_KEY={{ secret_key }}"
+Environment="PORT={{ app_port }}"
+Environment="PYTHONUNBUFFERED=1"
+
+# WSGI Execution via Gunicorn
+ExecStart={{ app_root_dir }}/venv/bin/gunicorn -w {{ gunicorn_workers }} -b 0.0.0.0:{{ app_port }} app:app
+ExecReload=/bin/kill -s HUP $MAINPID
+
+# Fault Tolerance & Auto-recovery
+Restart=always
+RestartSec=5
+KillMode=mixed
+TimeoutStopSec=15
+
+# Standard System Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=hostel-app
+
+[Install]
+WantedBy=multi-user.target

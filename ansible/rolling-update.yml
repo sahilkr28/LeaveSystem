@@ -1,0 +1,3 @@
+---
+# Top-level entrypoint forwarding to playbooks/rolling-update.yml
+- import_playbook: playbooks/rolling-update.yml

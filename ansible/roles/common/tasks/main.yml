@@ -1,0 +1,61 @@
+---
+# Tasks for roles/common
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: Install required core utilities, UFW, and Nagios NRPE packages
+  ansible.builtin.apt:
+    name:
+      - curl
+      - wget
+      - ufw
+      - nagios-nrpe-server
+      - nagios-plugins
+      - nagios-plugins-basic
+      - software-properties-common
+    state: present
+
+- name: Configure UFW default incoming and outgoing policies
+  community.general.ufw:
+    direction: "{{ item.direction }}"
+    policy: "{{ item.policy }}"
+  loop:
+    - { direction: 'incoming', policy: "{{ ufw_default_input_policy }}" }
+    - { direction: 'outgoing', policy: "{{ ufw_default_output_policy }}" }
+
+- name: Allow SSH on port 22 in UFW
+  community.general.ufw:
+    rule: allow
+    port: '22'
+    proto: tcp
+    comment: "SSH Management Access"
+
+- name: Allow Nagios NRPE on port 5666 in UFW from internal VPC
+  community.general.ufw:
+    rule: allow
+    port: '5666'
+    proto: tcp
+    src: "{{ vpc_cidr }}"
+    comment: "Nagios NRPE Monitoring from VPC"
+
+- name: Enable UFW firewall
+  community.general.ufw:
+    state: enabled
+
+- name: Configure Nagios NRPE daemon (nrpe.cfg)
+  ansible.builtin.template:
+    src: nrpe.cfg.j2
+    dest: /etc/nagios/nrpe.cfg
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart nagios-nrpe-server
+
+- name: Ensure nagios-nrpe-server service is enabled and started
+  ansible.builtin.service:
+    name: nagios-nrpe-server
+    state: started
+    enabled: yes

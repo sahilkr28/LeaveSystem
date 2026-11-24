@@ -1,0 +1,6 @@
+---
+# Defaults for roles/common
+nrpe_port: 5666
+nrpe_allowed_hosts: "127.0.0.1,::1,10.0.0.0/16"
+ufw_default_input_policy: "deny"
+ufw_default_output_policy: "allow"

@@ -1,0 +1,29 @@
+---
+# Global Cluster Configuration Variables
+app_name: hostel-app
+app_user: ubuntu
+app_group: ubuntu
+app_root_dir: /opt/hostel-app
+app_port: 5000
+
+# Networking & Security
+vpc_cidr: "10.0.0.0/16"
+allowed_ssh_cidr: "0.0.0.0/0"
+nrpe_allowed_hosts: "127.0.0.1,::1,10.0.0.0/16"
+
+# Database Configuration (PostgreSQL on db-01)
+db_name: hostel_db
+db_user: hostel_user
+db_password: hostel_secure_password_2026
+db_port: 5432
+
+# Application Secrets
+warden_password: warden_production_secure_pass_2026
+secret_key: smart-campus-hostel-portal-secret-key-prod-2026
+
+# HAProxy Configuration (lb-01)
+haproxy_port: 80
+haproxy_stats_port: 8404
+haproxy_stats_uri: /stats
+haproxy_stats_user: admin
+haproxy_stats_password: admin_cluster_pass_2026

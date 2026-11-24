@@ -1,0 +1,3 @@
+---
+# Top-level entrypoint forwarding to playbooks/heal-web.yml
+- import_playbook: playbooks/heal-web.yml

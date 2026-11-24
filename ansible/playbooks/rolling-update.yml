@@ -1,0 +1,79 @@
+---
+# ==============================================================================
+# Zero-Downtime Rolling Update Playbook for Smart Hostel Webservers
+# Updates /opt/hostel-app and restarts hostel-app.service one server at a time (serial: 1).
+# ==============================================================================
+
+- name: Zero-Downtime Rolling Update on Flask Webservers
+  hosts: webservers
+  become: yes
+  serial: 1
+  max_fail_percentage: 0
+  gather_facts: yes
+
+  vars:
+    app_root_dir: /opt/hostel-app
+    app_port: 5000
+    app_user: ubuntu
+    app_group: ubuntu
+
+  pre_tasks:
+    - name: Display rolling update initiation for current host
+      ansible.builtin.debug:
+        msg: ">>> Starting Zero-Downtime Rolling Update on node: {{ inventory_hostname }} (IP: {{ ansible_host }}) <<<"
+
+  tasks:
+    - name: Synchronize updated application code from ../app/ to /opt/hostel-app/app
+      ansible.builtin.copy:
+        src: ../app/
+        dest: "{{ app_root_dir }}/app/"
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        mode: '0755'
+
+    - name: Synchronize updated root app.py entrypoint
+      ansible.builtin.copy:
+        src: ../app.py
+        dest: "{{ app_root_dir }}/app.py"
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        mode: '0644'
+
+    - name: Synchronize requirements.txt
+      ansible.builtin.copy:
+        src: ../requirements.txt
+        dest: "{{ app_root_dir }}/requirements.txt"
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        mode: '0644'
+
+    - name: Update Python dependencies if requirements changed
+      ansible.builtin.pip:
+        requirements: "{{ app_root_dir }}/requirements.txt"
+        virtualenv: "{{ app_root_dir }}/venv"
+      become: yes
+      become_user: "{{ app_user }}"
+
+    - name: Restart hostel-app.service on {{ inventory_hostname }}
+      ansible.builtin.service:
+        name: hostel-app
+        state: restarted
+
+    - name: Wait for local /health endpoint to report healthy (HTTP 200)
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ app_port }}/health"
+        method: GET
+        status_code: 200
+      register: health_check
+      retries: 15
+      delay: 2
+      until: health_check.status == 200
+
+    - name: Verify health response details
+      ansible.builtin.debug:
+        msg: "Node {{ inventory_hostname }} is HEALTHY! Telemetry Host: {{ health_check.json.host }}, DB: {{ health_check.json.db }}"
+
+  post_tasks:
+    - name: Conclude node update
+      ansible.builtin.debug:
+        msg: ">>> Successfully finished zero-downtime update on {{ inventory_hostname }}. Proceeding to next host. <<<"

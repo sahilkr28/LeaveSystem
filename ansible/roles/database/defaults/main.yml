@@ -1,0 +1,8 @@
+---
+# Defaults for roles/database
+db_name: hostel_db
+db_user: hostel_user
+db_password: hostel_secure_password_2026
+db_port: 5432
+db_listen_addresses: "'*'"
+vpc_cidr: "10.0.0.0/16"
