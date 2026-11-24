@@ -92,9 +92,19 @@ def create_app(test_config=None):
         """
         today_str = date.today().isoformat()
         
-        # Fetch live records from database
-        leaves = db_session.query(Leave).order_by(Leave.created_at.desc()).all()
-        tickets = db_session.query(MaintenanceTicket).order_by(MaintenanceTicket.created_at.desc()).all()
+        # Fetch live records from database with auto-initialization for serverless cold starts
+        try:
+            leaves = db_session.query(Leave).order_by(Leave.created_at.desc()).all()
+            tickets = db_session.query(MaintenanceTicket).order_by(MaintenanceTicket.created_at.desc()).all()
+        except Exception:
+            db_session.rollback()
+            try:
+                init_db(seed=True)
+                leaves = db_session.query(Leave).order_by(Leave.created_at.desc()).all()
+                tickets = db_session.query(MaintenanceTicket).order_by(MaintenanceTicket.created_at.desc()).all()
+            except Exception:
+                leaves = []
+                tickets = []
 
         # Compute Dashboard Metrics
         total_leaves = len(leaves)

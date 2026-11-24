@@ -32,6 +32,12 @@ class Config:
             default_sqlite_path = Path(tempfile.gettempdir()) / "hostel_erp.db"
         else:
             default_sqlite_path = BASE_DIR / "hostel_erp.db"
+
+        try:
+            default_sqlite_path.parent.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            pass
+
         SQLALCHEMY_DATABASE_URI = f"sqlite:///{default_sqlite_path.as_posix()}"
 
     # Warden Portal Authentication Password

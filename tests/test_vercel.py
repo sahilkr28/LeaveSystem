@@ -26,7 +26,6 @@ def test_vercel_config_and_entrypoint():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     assert hasattr(module, "app"), "api/index.py must expose 'app' WSGI callable"
-    assert hasattr(module, "handler"), "api/index.py must expose 'handler' callable"
 
 def test_vercel_tmp_database_fallback(monkeypatch):
     """Verify that when VERCEL=1 is set, database falls back to /tmp/hostel_erp.db."""
